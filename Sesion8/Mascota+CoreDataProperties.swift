@@ -20,6 +20,7 @@ extension Mascota {
     @NSManaged public var genero: String?
     @NSManaged public var edad: Double
     @NSManaged public var nombre: String?
+    @NSManaged public var persona: Persona?
 
 }
 

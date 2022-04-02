@@ -35,7 +35,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // If any sessions were discarded while the application was not running, this will be called shortly after application:didFinishLaunchingWithOptions.
         // Use this method to release any resources that were specific to the discarded scenes, as they will not return.
     }
-
+    
+    func obtenerPersonas() {
+        if let url = URL(string:"https://my.api.mockaroo.com/responsables.json?key=ee082920") {
+            do {
+                let bytes = try Data(contentsOf: url)
+                let tmp = try JSONSerialization.jsonObject(with: bytes) as! [[String : Any]]
+                llenaBD(tmp, entidad:"Persona")
+            }
+            catch {
+                print ("no se pudo obtener la info desde el feed de personas \(error.localizedDescription)")
+            }
+        }
+    }
+    
     func obtenerMascotas() {
         // TODO: Verificar que se tenga conexión a Internet ....
         // TODO: Cambiar el http-method a POST para que el apiKey no vaya visible
@@ -44,7 +57,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 // TODO: Descarga de contenidos en background ....
                 let bytes = try Data(contentsOf: url)
                 let tmp = try JSONSerialization.jsonObject(with: bytes) as! [[String : Any]]
-                llenaBD(tmp)
+                llenaBD(tmp, entidad:"Mascota")
+                obtenerPersonas()
                 let ud = UserDefaults.standard
                 ud.set(true, forKey: "infoOK")
                 ud.synchronize()
@@ -56,20 +70,66 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     // MARK: - Core Data stack
-    func llenaBD(_ arreglo:[[String:Any]]) {
+    func llenaBD(_ arreglo:[[String:Any]], entidad:String) {
         // 0. requerimos la descripción de la entidad para poder crear objetos CD
-        guard let entidad = NSEntityDescription.entity(forEntityName: "Mascota", in:persistentContainer.viewContext)
+        guard let entidadDesc = NSEntityDescription.entity(forEntityName:entidad, in:persistentContainer.viewContext)
         else {
             return
         }
         for dict in arreglo {
             // 1. crear un objeto Mascota
-            let m = NSManagedObject(entity: entidad, insertInto: persistentContainer.viewContext) as! Mascota
-            // 2. setear las properties del objeto, con los datos del dict
-            m.inicializaCon(dict)
+            if entidad == "Mascota" {
+                let m = NSManagedObject(entity: entidadDesc, insertInto: persistentContainer.viewContext) as! Mascota
+                // 2. setear las properties del objeto, con los datos del dict
+                m.inicializaCon(dict)
+            }
+            else {
+                let p = NSManagedObject(entity: entidadDesc, insertInto: persistentContainer.viewContext) as! Persona
+                p.inicializaCon(dict)
+            }
             // 3. salvar el objeto
             saveContext()
         }
+    }
+    
+    func todasLasPersonas() -> [Persona] {
+        var resultset = [Persona]()
+        let request = NSFetchRequest<NSFetchRequestResult>(entityName: "Persona")
+        do {
+            let tmp = try persistentContainer.viewContext.fetch(request)
+                resultset = tmp as! [Persona]
+        }
+        catch {
+            print ("fallo el request \(error.localizedDescription)")
+        }
+        return resultset
+    }
+    
+    func todasLasMascotasTipo(_ tipo:String) -> [Mascota] {
+        var resultset = [Mascota]()
+        let request = NSFetchRequest<NSFetchRequestResult>(entityName: "Mascota")
+        do {
+            if tipo == "Otros" {
+                // El objeto NSPredicate es un "where" en el query
+                let filtro1 = NSPredicate(format: "tipo <> %@", "Gato")
+                // let filtro1 = NSPredicate(format: "tipo <> %@ AND tipo <> %@", "Gato", "Perro")
+                let filtro2 = NSPredicate(format: "tipo <> %@", "Perro")
+                // compoundPredicates une dos o mas predicados, con operadores logicos
+                request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [filtro1, filtro2])
+                let tmp = try persistentContainer.viewContext.fetch(request)
+                resultset = tmp as! [Mascota]
+            }
+            else {
+                let filtro = NSPredicate(format: "tipo = %@", tipo)
+                request.predicate = filtro
+                let tmp = try persistentContainer.viewContext.fetch(request)
+                resultset = tmp as! [Mascota]
+            }
+        }
+        catch {
+            print ("fallo el request \(error.localizedDescription)")
+        }
+        return resultset
     }
     
     func todasLasMascotas() -> [Mascota] {
@@ -85,6 +145,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return resultset
     }
     
+    func nuevaPersona() -> Persona {
+        let entidadDesc = NSEntityDescription.entity(forEntityName:"Persona", in:persistentContainer.viewContext)
+        let p = NSManagedObject(entity: entidadDesc!, insertInto: persistentContainer.viewContext) as! Persona
+        p.nombre = "Marge"
+        p.apellido_paterno = "Simpson"
+        return p
+    }
+        
     lazy var persistentContainer: NSPersistentContainer = {
         /*
          The persistent container for the application. This implementation

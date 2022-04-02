@@ -12,6 +12,21 @@ class MascotasViewController: UIViewController, UITableViewDelegate, UITableView
     @IBOutlet weak var segmented: UISegmentedControl!
     @IBOutlet weak var tableView: UITableView!
     
+    @IBAction func filtro () {
+        let appDel = UIApplication.shared.delegate as! AppDelegate
+        let index = segmented.selectedSegmentIndex
+        if index == 3 {
+            datos = appDel.todasLasMascotas()
+        }
+        else {
+            if let tipo = segmented.titleForSegment(at: index) {
+                datos = appDel.todasLasMascotasTipo(tipo)
+            }
+        }
+        // siempre que se cambie el data source de la tabla...
+        tableView.reloadData()
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         tableView.delegate = self
@@ -45,28 +60,51 @@ class MascotasViewController: UIViewController, UITableViewDelegate, UITableView
         let cell = tableView.dequeueReusableCell(withIdentifier: "reuseIdentifier", for: indexPath)
         let mascota = datos[indexPath.row]
         cell.textLabel?.text = mascota.nombre
+        if let duenio = mascota.persona {
+            cell.detailTextLabel?.text = duenio.nombre! + " " + duenio.apellido_paterno!
+        }
+        else {
+            cell.detailTextLabel?.text = ""
+        }
         return cell
     }
 
-    /*
     // Override to support conditional editing of the table view.
-    override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
+    func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
         // Return false if you do not want the specified item to be editable.
         return true
     }
-    */
 
-    /*
     // Override to support editing the table view.
-    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        let appDel = UIApplication.shared.delegate as! AppDelegate
         if editingStyle == .delete {
-            // Delete the row from the data source
-            tableView.deleteRows(at: [indexPath], with: .fade)
-        } else if editingStyle == .insert {
-            // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
-        }    
+            // BORRAR UN OBJETO
+            /*
+            // obtenemos el objeto que se va a borrar
+            let mascota = datos[indexPath.row]
+            // lo borramos del datasource
+            datos.remove(at: indexPath.row)
+            // lo borramos de la base de datos para que la información coincida
+            appDel.persistentContainer.viewContext.delete(mascota)
+            appDel.saveContext()
+            */
+            /// ACTUALIZA UN OBJETO
+            /// obtenemos el objeto que queremos actualizar
+            let mascota2 = datos[indexPath.row]
+            mascota2.nombre! += " eliminado"
+            
+            
+            // Actualizar la relación del objeto con otro objeto:
+            let mascota3 = datos[indexPath.row]
+            mascota3.persona = appDel.nuevaPersona()
+            
+            // después de cualquier modificacion a la BD hay que salvar el context
+            appDel.saveContext()
+            // volvemos a dibujar la tabla
+            tableView.reloadData()
+        }
     }
-    */
 
     /*
     // Override to support rearranging the table view.

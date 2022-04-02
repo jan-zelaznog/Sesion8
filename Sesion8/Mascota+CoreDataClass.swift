@@ -11,7 +11,6 @@ import CoreData
 
 @objc(Mascota)
 public class Mascota: NSManagedObject {
-    
     func inicializaCon(_ dict: [String:Any]) {
         let nombre = (dict["nombre"] as? String) ?? ""
         let genero = (dict["genero"] as? String) ?? ""
@@ -22,5 +21,4 @@ public class Mascota: NSManagedObject {
         self.tipo = tipo
         self.edad = edad
     }
-
 }
