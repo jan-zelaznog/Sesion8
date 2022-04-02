@@ -12,9 +12,13 @@ import CoreData
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
 
-
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Validar CON UNA LLAVE EN USERDEFAULTS si ya se descargó la info
+        let ud = UserDefaults.standard
+        let bandera = (ud.value(forKey: "infoOK") as? Bool) ?? false
+        if !bandera {
+            obtenerMascotas()
+        }
         return true
     }
 
@@ -32,8 +36,55 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Use this method to release any resources that were specific to the discarded scenes, as they will not return.
     }
 
+    func obtenerMascotas() {
+        // TODO: Verificar que se tenga conexión a Internet ....
+        // TODO: Cambiar el http-method a POST para que el apiKey no vaya visible
+        if let url = URL(string:"https://my.api.mockaroo.com/mascotas.json?key=ee082920") {
+            do {
+                // TODO: Descarga de contenidos en background ....
+                let bytes = try Data(contentsOf: url)
+                let tmp = try JSONSerialization.jsonObject(with: bytes) as! [[String : Any]]
+                llenaBD(tmp)
+                let ud = UserDefaults.standard
+                ud.set(true, forKey: "infoOK")
+                ud.synchronize()
+            }
+            catch {
+                print ("no se pudo obtener la info desde el feed de mascotas \(error.localizedDescription)")
+            }
+        }
+    }
+    
     // MARK: - Core Data stack
-
+    func llenaBD(_ arreglo:[[String:Any]]) {
+        // 0. requerimos la descripción de la entidad para poder crear objetos CD
+        guard let entidad = NSEntityDescription.entity(forEntityName: "Mascota", in:persistentContainer.viewContext)
+        else {
+            return
+        }
+        for dict in arreglo {
+            // 1. crear un objeto Mascota
+            let m = NSManagedObject(entity: entidad, insertInto: persistentContainer.viewContext) as! Mascota
+            // 2. setear las properties del objeto, con los datos del dict
+            m.inicializaCon(dict)
+            // 3. salvar el objeto
+            saveContext()
+        }
+    }
+    
+    func todasLasMascotas() -> [Mascota] {
+        var resultset = [Mascota]()
+        let request = NSFetchRequest<NSFetchRequestResult>(entityName: "Mascota")
+        do {
+            let tmp = try persistentContainer.viewContext.fetch(request)
+            resultset = tmp as! [Mascota]
+        }
+        catch {
+            print ("fallo el request \(error.localizedDescription)")
+        }
+        return resultset
+    }
+    
     lazy var persistentContainer: NSPersistentContainer = {
         /*
          The persistent container for the application. This implementation
