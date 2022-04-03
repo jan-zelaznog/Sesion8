@@ -7,8 +7,33 @@
 
 import UIKit
 
-class PersonasTableViewController: UITableViewController {
+class PersonasTableViewController: UITableViewController, UISearchResultsUpdating {
     var datos = [Persona]()
+    // El componente UISearchController es el que permite agregar una barra de busqueda a un tableview
+    // se inicializa con "nil" para indicar que no se utilizará un controller distinto o sea que la búsqueda se realizará sobre la misma tabla
+    let buscador = UISearchController(searchResultsController: nil)
+    // necesitamos un nuevo arreglo, para los resultados de la busqueda
+    var registrosFiltrados = [Persona]()
+    // esta variable calculada, se va a actualizar en el momento que se consulte según el estado de la barra de búsqueda
+    var barraVacia:Bool {
+        return buscador.searchBar.text?.isEmpty ?? true
+    }
+    // esta variable calculada, nos servirá para determinar si se está realizando una búsqueda
+    var buscando: Bool {
+      return buscador.isActive && !barraVacia
+    }
+    // configuración inicial de la barra de búsqueda
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // define el objeto que se va a encargar de los eventos de la barra de búsqueda, debe implementar el protocolo UISearchResultsUpdating
+        buscador.searchResultsUpdater = self
+        // si se setea a true, el tableview se deshabilita cuando se está usando el buscador
+        buscador.obscuresBackgroundDuringPresentation = false
+        // el hint que va a aparecer en la barra de búsqueda
+        buscador.searchBar.placeholder = "Buscar por nombre"
+        // se necesita un objeto navigationcontroller para que se pueda agregar la barra de busqueda sobre el tableview
+        navigationItem.searchController = buscador
+    }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -17,18 +42,25 @@ class PersonasTableViewController: UITableViewController {
     }
     
     // MARK: - Table view data source
-
     override func numberOfSections(in tableView: UITableView) -> Int {
         return 1
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        // Si se está realizando una búsqueda, se debe tomar como datasource el arreglo con los objetos filtrados, no el arreglo completo
+        if buscando {
+            return registrosFiltrados.count
+        }
         return datos.count
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "reuseIdentifier", for: indexPath)
-        let persona = datos[indexPath.row]
+        var persona = datos[indexPath.row]
+        // Si se está realizando una búsqueda, se debe tomar como datasource el arreglo con los objetos filtrados, no el arreglo completo
+        if buscando {
+            persona = registrosFiltrados[indexPath.row]
+        }
         guard let nom = persona.nombre,
               let app = persona.apellido_paterno
         else {
@@ -38,50 +70,25 @@ class PersonasTableViewController: UITableViewController {
         cell.textLabel?.text = "\(nom) \(app) - tiene \(cuantasMascotas) mascotas"
         return cell
     }
-
-    /*
-    // Override to support conditional editing of the table view.
-    override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the specified item to be editable.
-        return true
+    
+    // MARK: - UISearchResultsUpdating
+    // este método es del protocolo para controlar el evento de búsqueda
+    func updateSearchResults(for searchController: UISearchController) {
+        let searchBar = searchController.searchBar
+        // obtenemos el texto que está escrito en el buscador y lo usamos para filtrar el arreglo
+        filtrarContenidos(searchBar.text!)
     }
-    */
-
-    /*
-    // Override to support editing the table view.
-    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            // Delete the row from the data source
-            tableView.deleteRows(at: [indexPath], with: .fade)
-        } else if editingStyle == .insert {
-            // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
-        }    
+    
+    // este método filtra el arreglo original y asigna los resultados al nuevo arreglo
+    func filtrarContenidos(_ texto: String) {
+        // el método filter del objeto array permite filtrar los elementos del arreglo usando un closure
+        registrosFiltrados = datos.filter { (persona: Persona) -> Bool in
+            // indicamos la condición que deben cumplir los objetos para considerarse dentro del arreglo filtrado
+            // hacemos la comparación en minúsculasa para que sea case insensitive
+            return (persona.nombre!.lowercased().contains(texto.lowercased()) ||
+                  persona.apellido_paterno!.lowercased().contains(texto.lowercased()) )
+        }
+        // volvemos a cargar la tabla con los datos filtrados
+        tableView.reloadData()
     }
-    */
-
-    /*
-    // Override to support rearranging the table view.
-    override func tableView(_ tableView: UITableView, moveRowAt fromIndexPath: IndexPath, to: IndexPath) {
-
-    }
-    */
-
-    /*
-    // Override to support conditional rearranging of the table view.
-    override func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the item to be re-orderable.
-        return true
-    }
-    */
-
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destination.
-        // Pass the selected object to the new view controller.
-    }
-    */
-
 }
